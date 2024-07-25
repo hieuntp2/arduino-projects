@@ -64,7 +64,7 @@ void getMpuData(){
   angleX += (g.gyro.x - initialAngleX) * dt;
   angleY += (g.gyro.y - initialAngleY) * dt;
 
-  /* Clear only the part of the display we are updating */
+  /* Clear the screen */
   int16_t screenWidth = tft.width();
   int16_t screenHeight = tft.height();
   int16_t centerX1 = screenWidth / 4;
@@ -82,19 +82,9 @@ void getMpuData(){
   tft.fillCircle(centerX2, centerY2, radius, TFT_BLACK);
   tft.drawCircle(centerX2, centerY2, radius, TFT_WHITE);
 
-  // Draw thicker lines for X rotation
-  int16_t lineX1Start = centerX1 - radius * cos(angleX);
-  int16_t lineY1Start = centerY1 - radius * sin(angleX);
-  int16_t lineX1End = centerX1 + radius * cos(angleX);
-  int16_t lineY1End = centerY1 + radius * sin(angleX);
-  drawThickLine(centerX1, centerY1, lineX1End, lineY1End, TFT_YELLOW, 10);
-
-  // Draw thicker lines for Y rotation
-  int16_t lineX2Start = centerX2 - radius * cos(angleY);
-  int16_t lineY2Start = centerY2 - radius * sin(angleY);
-  int16_t lineX2End = centerX2 + radius * cos(angleY);
-  int16_t lineY2End = centerY2 + radius * sin(angleY);
-  drawThickLine(centerX2, centerY2, lineX2End, lineY2End, TFT_WHITE, 10);
+  // Draw rotating lines for X and Y rotation
+  drawRotatingLine(centerX1, centerY1, radius, angleX, TFT_YELLOW);
+  drawRotatingLine(centerX2, centerY2, radius, angleY, TFT_WHITE);
 
   // Display rotation values at the center of each circle
   tft.setTextColor(TFT_YELLOW, TFT_BLACK); tft.setTextFont(4);
@@ -104,6 +94,16 @@ void getMpuData(){
   tft.setTextColor(TFT_WHITE, TFT_BLACK); tft.setTextFont(4);
   tft.setCursor(centerX2 - 30, centerY2 - 15);
   tft.printf("%.2f", angleY);
+}
+
+void drawRotatingLine(int centerX, int centerY, int radius, float angle, uint16_t color) {
+  float rad = angle; // Assuming angle is in radians for the trigonometric functions
+  int16_t lineX1 = centerX - radius * cos(rad);
+  int16_t lineY1 = centerY - radius * sin(rad);
+  int16_t lineX2 = centerX + radius * cos(rad);
+  int16_t lineY2 = centerY + radius * sin(rad);
+
+  drawThickLine(lineX1, lineY1, lineX2, lineY2, color, 10);
 }
 
 void drawThickLine(int x0, int y0, int x1, int y1, uint16_t color, uint8_t thickness) {
