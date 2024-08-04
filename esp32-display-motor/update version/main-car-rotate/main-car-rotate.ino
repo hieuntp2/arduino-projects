@@ -7,12 +7,20 @@
 TFT_eSPI tft = TFT_eSPI();  // Invoke library, pins defined in User_Setup.h
 Adafruit_MPU6050 mpu;
 
-// Variables to store initial angles
+// Variables to store initial angles and accelerations
 float initialAngleX = 0;
 float initialAngleY = 0;
+float initialAngleZ = 0;
 unsigned long lastTime = 0;
 float angleX = 0;
 float angleY = 0;
+float angleZ = 0;
+float accelerationX = 0;
+float temperature = 0;
+
+int16_t screenWidth, screenHeight;
+int16_t centerX1, centerY1, centerX2, centerY2;
+int16_t radius, diameter;
 
 void setup(void) {
   tft.init();
@@ -26,19 +34,30 @@ void setup(void) {
   // Set initial angles
   initialAngleX = g.gyro.x;
   initialAngleY = g.gyro.y;
+  initialAngleZ = g.gyro.z;
   lastTime = millis();
+
+  // Initialize screen dimensions and circle parameters
+  screenWidth = tft.width();
+  screenHeight = tft.height();
+  centerX1 = screenWidth / 4;
+  centerY1 = screenHeight / 2;
+  centerX2 = 3 * screenWidth / 4;
+  centerY2 = screenHeight / 2;
+  radius = screenWidth / 4;
+  diameter = 2 * radius;
+  
+  // Set initial screen background
+  tft.fillScreen(TFT_BLACK);
 }
 
 void loop() {
   getMpuData();
-  delay(200); // Adjust delay to balance power consumption and update frequency
+  updateDisplay();
+  delay(1000); // Adjust delay to balance power consumption and update frequency
 }
 
 void setup_mpu(){
-  Serial.begin(115200);
-  while (!Serial)
-    delay(10); // will pause Zero, Leonardo, etc until serial console opens
-
   if (!mpu.begin()) {
     while (1) {
       delay(10);
@@ -52,7 +71,6 @@ void setup_mpu(){
 }
 
 void getMpuData(){
-  /* Get new sensor events with the readings */
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
@@ -60,44 +78,50 @@ void getMpuData(){
   float dt = (currentTime - lastTime) / 1000.0; // time in seconds
   lastTime = currentTime;
 
-  /* Integrate the gyroscope data -> angle */
   angleX += (g.gyro.x - initialAngleX) * dt;
   angleY += (g.gyro.y - initialAngleY) * dt;
+  angleZ += (g.gyro.z - initialAngleZ) * dt;
 
-  /* Clear the screen */
-  int16_t screenWidth = tft.width();
-  int16_t screenHeight = tft.height();
-  int16_t centerX1 = screenWidth / 4;
-  int16_t centerY1 = screenHeight / 2;
-  int16_t centerX2 = 3 * screenWidth / 4;
-  int16_t centerY2 = screenHeight / 2;
-  int16_t radius = screenWidth / 4;
-  int16_t diameter = 2 * radius;
+  accelerationX = a.acceleration.x;
+  temperature = temp.temperature;
+}
 
-  tft.fillScreen(TFT_BLACK); // Black background
-
-  // Draw circles
+void updateDisplay() {
+  // Clear only the areas that need to be updated
   tft.fillCircle(centerX1, centerY1, radius, TFT_BLACK);
-  tft.drawCircle(centerX1, centerY1, radius, TFT_YELLOW);
   tft.fillCircle(centerX2, centerY2, radius, TFT_BLACK);
-  tft.drawCircle(centerX2, centerY2, radius, TFT_WHITE);
+  
+  // Draw circles and lines
+  drawCircleAndLine(centerX1, centerY1, radius, angleX, TFT_YELLOW);
+  drawCircleAndLine(centerX2, centerY2, radius, angleZ, TFT_WHITE);
 
-  // Draw rotating lines for X and Y rotation
-  drawRotatingLine(centerX1, centerY1, radius, angleX, TFT_YELLOW);
-  drawRotatingLine(centerX2, centerY2, radius, angleY, TFT_WHITE);
+  // Display X acceleration value and temperature between circles
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextFont(4);
+  tft.setCursor(screenWidth / 2 - 30, 0); // Adjust position if necessary
+  tft.printf("%.2f m/s", accelerationX);
+  
+  tft.setCursor(screenWidth / 2 - 30, 110); // Position below acceleration text
+  tft.printf("%.2f C", temperature);
 
   // Display rotation values at the center of each circle
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK); tft.setTextFont(4);
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.setTextFont(4);
   tft.setCursor(centerX1 - 30, centerY1 - 15);
   tft.printf("%.2f", angleX);
 
-  tft.setTextColor(TFT_WHITE, TFT_BLACK); tft.setTextFont(4);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextFont(4);
   tft.setCursor(centerX2 - 30, centerY2 - 15);
-  tft.printf("%.2f", angleY);
+  tft.printf("%.2f", angleZ);
 }
 
-void drawRotatingLine(int centerX, int centerY, int radius, float angle, uint16_t color) {
-  float rad = angle; // Assuming angle is in radians for the trigonometric functions
+void drawCircleAndLine(int centerX, int centerY, int radius, float angle, uint16_t color) {
+  // Draw the circle
+  tft.drawCircle(centerX, centerY, radius, color);
+
+  // Draw rotating line
+  float rad = angle; // Assuming angle is in radians
   int16_t lineX1 = centerX - radius * cos(rad);
   int16_t lineY1 = centerY - radius * sin(rad);
   int16_t lineX2 = centerX + radius * cos(rad);
